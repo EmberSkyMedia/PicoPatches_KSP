@@ -1,3 +1,96 @@
+// This MM patch will create KerbalismExperiments using data from ModuleScienceExperiments and EXPERIMENT_DEFINITION
+
+@PART[*]:HAS[@MODULE[ModuleScienceExperiment],!MODULE[KerbalismExperiment]]:AFTER[zzzzzzKerbalism]
+{
+    // Determine if the experiment is a sample or data based on heuristic
+    %isSampleExperiment = false
+    %requiresCrew = false
+
+    // Check if the experiment is collectable
+    @MODULE[ModuleScienceExperiment]:HAS[#dataIsCollectable[True]]
+    {
+        %isSampleExperiment = true
+    }
+
+    // Check if the experiment requires crew based on experiment ID or part modules
+    @MODULE[ModuleScienceExperiment]:HAS[#experimentID[surfaceSample]]
+    {
+        %requiresCrew = true
+    }
+    // Check if the part has Kerbalism habitation module
+    @MODULE[KerbalismHabitat]
+    {
+        %requiresCrew = true
+    }
+    // Check if the part has an INTERNAL module
+    @INTERNAL[*]
+    {
+        %requiresCrew = true
+    }
+
+    // Extract parameters from EXPERIMENT_DEFINITION
+    @EXPERIMENT_DEFINITION:HAS[#id[#$MODULE[ModuleScienceExperiment]/experimentID$]]
+    {
+        %experimentTitle = #$title$
+        %baseValue = #$baseValue$
+        %scienceCap = #$scienceCap$
+        %dataScale = #$dataScale$
+        %requireAtmosphere = #$requireAtmosphere$
+        %situationMask = #$situationMask$
+        %biomeMask = #$biomeMask$
+    }
+
+    // Create a new KerbalismExperiment module
+    MODULE
+    {
+        name = KerbalismExperiment
+        
+        // Transfer experiment-specific parameters
+        experiment_id = #$MODULE[ModuleScienceExperiment]/experimentID$
+        experiment_action_name = Collect #$experimentTitle$ Data
+        reset_action_name = Reset #$experimentTitle$ Data
+        review_data_action_name = Review #$experimentTitle$ Data
+        use_staging = #$MODULE[ModuleScienceExperiment]/useStaging$
+        rerunnable = #$MODULE[ModuleScienceExperiment]/rerunnable$
+
+        // Use parameters from EXPERIMENT_DEFINITION
+        base_value = #$baseValue$
+        science_cap = #$scienceCap$
+        data_scale = #$dataScale$
+        situation_mask = #$situationMask$
+        biome_mask = #$biomeMask$
+
+        // Procedurally estimate additional parameters
+        @data_rate = #$../mass$
+        @data_rate *= 0.01          // Example estimation: data rate proportional to part mass
+        @data_capacity = #$dataScale$
+        @data_capacity *= 10.0      // Example estimation: data capacity based on dataScale
+        @data_transfer_cost = #$dataScale$
+        @data_transfer_cost *= 10.0 // Example estimation: data transfer cost based on dataScale
+
+        // Estimate additional settings based on whether it's a sample experiment
+        @ec_rate = #$../mass$
+        @ec_rate *= 0.005           // Example estimation: EC rate proportional to part mass
+                
+        // Set sample capacity based on whether it's a sample experiment
+        %sample_capacity_value = 0
+        @sample_capacity_value = #$isSampleExperiment$
+        @sample_capacity_value ^= :true:1
+        @sample_capacity_value ^= :false:0
+        @sample_capacity = #$sample_capacity_value$
+        @sample_mass = #$../mass$
+        @sample_mass *= #$sample_capacity_value$
+        @sample_mass *= 0.2         // Example estimation: sample mass proportional to part mass
+
+        // Set crew requirements based on heuristic
+        required_crew = #$requiresCrew$
+        crew_operation = #$requiresCrew$
+    }
+
+    // Remove the stock ModuleScienceExperiment module
+    !MODULE[ModuleScienceExperiment]
+}
+
 // This MM patch will remove all non-compatible science parts with Kerbalism Science
 
 @PART[*]:HAS[@MODULE[ModuleScienceExperiment],!MODULE[KerbalismExperiment]]:FINAL
