@@ -1,1 +1,7 @@
+// This MM patch will remove all non-compatible science parts with Kerbalism Science
 
+@PART[*]:HAS[@MODULE[ModuleScienceExperiment],!MODULE[KerbalismExperiment]]:FINAL
+{
+    // Remove the part itself
+    !PART[*] {}
+}
